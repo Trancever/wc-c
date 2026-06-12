@@ -153,8 +153,14 @@ int main(int argc, char *argv[]) {
   while (file_index < argc) {
     const char *file_name = argv[file_index];
 
+    bool is_stdin = strcmp(file_name, "-") == 0;
     int fd = -1;
-    fd = open(file_name, O_RDONLY);
+
+    if (is_stdin) {
+      fd = STDIN_FILENO;
+    } else {
+      fd = open(file_name, O_RDONLY);
+    }
 
     if (fd == -1) {
       int error_number = errno;
@@ -175,7 +181,10 @@ int main(int argc, char *argv[]) {
       files_processed_successfully++;
     }
 
-    close(fd);
+    if (!is_stdin) {
+      close(fd);
+    }
+
     file_index++;
   }
 

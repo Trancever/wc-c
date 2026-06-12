@@ -25,6 +25,17 @@ format_lwc_line() {
   fi
 }
 
+format_lw_line() {
+  local lines="$1"
+  local words="$2"
+
+  printf "%8s%8s" "$lines" "$words"
+
+  if [ "$#" -eq 3 ]; then
+    printf " %s" "$3"
+  fi
+}
+
 format_l_line() {
   printf "%8s" "$1"
 
