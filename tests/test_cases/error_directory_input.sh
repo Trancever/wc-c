@@ -41,5 +41,3 @@ if [ "$actual_err" != "$expected_err" ]; then
   echo "actual stderr:   $actual_err"
   exit 1
 fi
-
-echo "PASS"

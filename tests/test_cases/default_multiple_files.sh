@@ -18,12 +18,10 @@ file3="${TEST_TMP_DIR}/${test_name}/file3.txt"
 printf '' > "$file3"
 
 expected="$(printf "%s\n%s\n%s\n%s" \
-  "$(format_lwc_line 4 10 50 "$file1")" \
-  "$(format_lwc_line 3 6 47 "$file2")" \
-  "$(format_lwc_line 0 0 0 "$file3")" \
-  "$(format_lwc_line 7 16 97 "total")")"
+  "$(format_3_params 4 10 50 "$file1")" \
+  "$(format_3_params 3 6 47 "$file2")" \
+  "$(format_3_params 0 0 0 "$file3")" \
+  "$(format_3_params 7 16 97 "total")")"
 actual="$("$MYWC_BIN" "$file1" "$file2" "$file3")"
 
 assert_eq "output" "$expected" "$actual"
-
-echo "PASS"

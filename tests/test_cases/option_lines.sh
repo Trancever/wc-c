@@ -11,13 +11,9 @@ mkdir -p "${TEST_TMP_DIR}/${test_name}"
 file="${TEST_TMP_DIR}/${test_name}/file.txt"
 printf 'one two three\n\nfour\tfive\nsix seven eight nine\nlast' > "$file"
 
-flag_l="-l"
-flag_w="-w"
-flag_c="-c"
+flag="-l"
 
-expected="$(format_lwc_line 4 10 50 "$file")"
-actual="$("$MYWC_BIN" "$flag_l" "$flag_c" "$flag_w" "$file")"
+expected="$(format_1_param 4 "$file")"
+actual="$("$MYWC_BIN" "$flag" "$file")"
 
 assert_eq "output" "$expected" "$actual"
-
-echo "PASS"

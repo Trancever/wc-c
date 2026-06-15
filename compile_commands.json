@@ -1,0 +1,12 @@
+[
+  {
+    "directory": "/Users/dawid/dev/mywc",
+    "command": "cc -Ilib -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -o mywc mywc.c lib/utf_8.c",
+    "file": "/Users/dawid/dev/mywc/mywc.c"
+  },
+  {
+    "directory": "/Users/dawid/dev/mywc",
+    "command": "cc -Ilib -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -o mywc mywc.c lib/utf_8.c",
+    "file": "/Users/dawid/dev/mywc/lib/utf_8.c"
+  }
+]

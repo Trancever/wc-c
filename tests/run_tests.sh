@@ -8,7 +8,7 @@ export MYWC_BIN="${repo_dir}/mywc"
 export TEST_TMP_DIR="${script_dir}/tmp"
 export TEST_HELPERS="${script_dir}/test_helpers.sh"
 
-cc -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -o "$MYWC_BIN" "${repo_dir}/mywc.c"
+make -C "$repo_dir"
 
 mkdir -p "${script_dir}/tmp"
 
@@ -18,9 +18,10 @@ for test_file in "${script_dir}"/test_cases/*.sh; do
   echo "$(basename "$test_file")"
 
   if bash "$test_file"; then
-    :
+    echo "PASS"
   else
     failed=$((failed + 1))
+    echo "FAIL"
   fi
 done
 

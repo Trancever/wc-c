@@ -9,13 +9,9 @@ test_name="${script_name%.sh}"
 mkdir -p "${TEST_TMP_DIR}/${test_name}"
 
 file="${TEST_TMP_DIR}/${test_name}/file.txt"
-printf 'one two three\n\nfour\tfive\nsix seven eight nine\nlast' > "$file"
+printf 'abc ąęć\n€ café\n🙂 rocket 🚀\nlast line no newline' > "$file"
 
-flag="-lwc"
-
-expected="$(format_lwc_line 4 10 50 "$file")"
-actual="$("$MYWC_BIN" "$flag" "$file")"
+expected="$(format_1_param 46 "$file")"
+actual="$("$MYWC_BIN" -m "$file")"
 
 assert_eq "output" "$expected" "$actual"
-
-echo "PASS"
