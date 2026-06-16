@@ -26,6 +26,12 @@ struct file_parse_result {
   int read_error_number;
 };
 
+struct file_parse_state {
+  bool in_word;
+  uint64_t current_line_length_bytes;
+  uint64_t current_line_length_characters;
+};
+
 struct output_options {
   bool show_lines;
   bool show_words;
@@ -35,72 +41,94 @@ struct output_options {
   bool has_error;
 };
 
+uint64_t max_uint64_t(uint64_t a, uint64_t b) { return a > b ? a : b; }
+
+void update_state_on_new_character(unsigned char character,
+                                   struct utf8_decode_result decoded,
+                                   struct file_parse_result *parse_result,
+                                   struct file_parse_state *parse_state) {
+  if (decoded.status == UTF8_VALID || decoded.status == UTF8_INVALID) {
+    parse_result->counts.characters++;
+  }
+
+  if (decoded.status == UTF8_VALID) {
+    if (character == '\n') {
+      parse_result->counts.lines++;
+
+      parse_result->counts.max_line_length_bytes =
+          max_uint64_t(parse_state->current_line_length_bytes,
+                       parse_result->counts.max_line_length_bytes);
+      parse_state->current_line_length_bytes = 0;
+
+      parse_result->counts.max_line_length_characters =
+          max_uint64_t(parse_state->current_line_length_characters,
+                       parse_result->counts.max_line_length_characters);
+      parse_state->current_line_length_characters = 0;
+    } else {
+      parse_state->current_line_length_characters++;
+      parse_state->current_line_length_bytes += decoded.bytes_consumed;
+    }
+
+    bool is_white_space_character = isspace(character);
+
+    if (!is_white_space_character && parse_state->in_word == false) {
+      parse_result->counts.words++;
+    }
+
+    parse_state->in_word = is_white_space_character ? 0 : 1;
+  }
+}
+
 struct file_parse_result parse_file(int fd) {
   struct file_parse_result parse_result = {0};
   ssize_t bytes_read = -1;
   unsigned char buffer[BLOCK_SIZE];
-  bool in_word = false;
-  uint64_t current_line_length_bytes = 0;
-  uint64_t current_line_length_characters = 0;
 
-  ssize_t bytes_to_skip = 0;
+  uint8_t carry_over_char_length = 0;
+  struct file_parse_state file_parse_state = {0};
 
-  while ((bytes_read = read(fd, buffer, BLOCK_SIZE)) > 0) {
+  while ((bytes_read = read(fd, buffer + carry_over_char_length,
+                            BLOCK_SIZE - carry_over_char_length)) > 0) {
     parse_result.counts.bytes += (uint64_t)bytes_read;
 
-    ssize_t i = bytes_to_skip;
-    while (i < bytes_read) {
-      struct decode_result decoded = decode_leading_byte(buffer[i]);
-      parse_result.counts.characters++;
+    ssize_t i = 0;
+    ssize_t available_bytes = bytes_read + carry_over_char_length;
 
-      unsigned char ch = buffer[i];
+    while (i < available_bytes) {
+      struct utf8_decode_result decoded =
+          decode_utf8_char(buffer + i, (uint64_t)(available_bytes - i));
 
-      if (ch == '\n') {
-        parse_result.counts.lines++;
+      update_state_on_new_character(buffer[i], decoded, &parse_result,
+                                    &file_parse_state);
 
-        parse_result.counts.max_line_length_bytes =
-            current_line_length_bytes >
-                    parse_result.counts.max_line_length_bytes
-                ? current_line_length_bytes
-                : parse_result.counts.max_line_length_bytes;
-        current_line_length_bytes = 0;
+      if (decoded.status == UTF8_INCOMPLETE) {
+        uint8_t idx;
 
-        parse_result.counts.max_line_length_characters =
-            current_line_length_characters >
-                    parse_result.counts.max_line_length_characters
-                ? current_line_length_characters
-                : parse_result.counts.max_line_length_characters;
-        current_line_length_characters = 0;
+        // copy leading byte and all continuation bytes that are part of current
+        // buffer to start of buffer
+        for (idx = 0; idx < decoded.expected_bytes && idx + i < available_bytes;
+             idx++) {
+          buffer[idx] = buffer[i + idx];
+        }
+
+        carry_over_char_length = idx;
+        break;
       } else {
-        current_line_length_characters++;
-        current_line_length_bytes += decoded.num_of_bytes;
+        carry_over_char_length = 0;
+        i += decoded.bytes_consumed;
       }
-
-      int is_space = isspace(ch);
-
-      if (!is_space && in_word == false) {
-        parse_result.counts.words++;
-      }
-
-      in_word = is_space ? 0 : 1;
-      i += decoded.num_of_bytes;
     }
-
-    bytes_to_skip = i - bytes_read;
   }
 
   if (bytes_read == -1) {
     parse_result.read_error_number = errno;
   } else {
-    if (current_line_length_bytes > parse_result.counts.max_line_length_bytes) {
-      parse_result.counts.max_line_length_bytes = current_line_length_bytes;
-    }
-
-    if (current_line_length_characters >
-        parse_result.counts.max_line_length_characters) {
-      parse_result.counts.max_line_length_characters =
-          current_line_length_characters;
-    }
+    parse_result.counts.max_line_length_bytes =
+        max_uint64_t(file_parse_state.current_line_length_bytes,
+                     parse_result.counts.max_line_length_bytes);
+    parse_result.counts.max_line_length_characters =
+        max_uint64_t(file_parse_state.current_line_length_characters,
+                     parse_result.counts.max_line_length_characters);
   }
 
   return parse_result;
@@ -112,6 +140,13 @@ void add_counts(struct file_counts *total_counts,
   total_counts->lines += counts_to_add->lines;
   total_counts->words += counts_to_add->words;
   total_counts->characters += counts_to_add->characters;
+
+  total_counts->max_line_length_bytes =
+      max_uint64_t(counts_to_add->max_line_length_bytes,
+                   total_counts->max_line_length_bytes);
+  total_counts->max_line_length_characters =
+      max_uint64_t(counts_to_add->max_line_length_characters,
+                   total_counts->max_line_length_characters);
 }
 
 void print_counts_line(const struct file_counts *counts, const char *name,
@@ -244,14 +279,6 @@ int main(int argc, char *argv[]) {
       print_counts_line(&parse_result.counts, file_name, &options);
       add_counts(&total_counts, &parse_result.counts);
       files_processed_successfully++;
-
-      if (parse_result.counts.max_line_length_bytes > total_counts.max_line_length_bytes) {
-        total_counts.max_line_length_bytes = parse_result.counts.max_line_length_bytes;
-      }
-
-      if (parse_result.counts.max_line_length_characters > total_counts.max_line_length_characters) {
-        total_counts.max_line_length_characters = parse_result.counts.max_line_length_characters;
-      }
     }
 
     if (!is_stdin) {
