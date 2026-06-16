@@ -3,8 +3,8 @@ CPPFLAGS ?= -Ilib
 CFLAGS ?= -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion
 
 TARGET := mywc
-SRC := mywc.c lib/utf_8.c
-HEADERS := lib/utf_8.h
+SRC := mywc.c lib/utf_8.c lib/unicode.c
+HEADERS := lib/utf_8.h lib/unicode.h
 TEST_RUNNER := tests/run_tests.sh
 
 .PHONY: all test tests clean

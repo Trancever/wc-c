@@ -10,6 +10,7 @@ struct utf8_decode_result {
   enum utf8_status status;
   uint8_t bytes_consumed;
   uint8_t expected_bytes;
+  uint32_t code_point;
 };
 
 struct utf8_decode_result decode_utf8_char(const uint8_t *stream,

@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "utf_8.h"
+#include "unicode.h"
 
 #define BLOCK_SIZE 4096
 
@@ -47,11 +48,9 @@ void update_state_on_new_character(unsigned char character,
                                    struct utf8_decode_result decoded,
                                    struct file_parse_result *parse_result,
                                    struct file_parse_state *parse_state) {
-  if (decoded.status == UTF8_VALID || decoded.status == UTF8_INVALID) {
-    parse_result->counts.characters++;
-  }
-
   if (decoded.status == UTF8_VALID) {
+    parse_result->counts.characters++;
+
     if (character == '\n') {
       parse_result->counts.lines++;
 
@@ -69,7 +68,7 @@ void update_state_on_new_character(unsigned char character,
       parse_state->current_line_length_bytes += decoded.bytes_consumed;
     }
 
-    bool is_white_space_character = isspace(character);
+    bool is_white_space_character = is_unicode_whitespace(decoded.code_point);
 
     if (!is_white_space_character && parse_state->in_word == false) {
       parse_result->counts.words++;
